@@ -1,19 +1,15 @@
 FROM python:3.9-slim
 
 # Install system dependencies
+# Switched to chromium/chromium-driver to avoid runtime download issues
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     unzip \
     curl \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Google Chrome
-RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
-    && apt-get update \
-    && apt-get install -y ./google-chrome-stable_current_amd64.deb \
-    && rm google-chrome-stable_current_amd64.deb \
+    chromium \
+    chromium-driver \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -31,6 +27,10 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING=utf-8
 ENV RUNNING_IN_DOCKER=true
 ENV PORT=8080
+
+# Configure Chrome/Chromedriver paths for the python script
+ENV CHROME_BIN=/usr/bin/chromium
+ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
 # Expose port
 EXPOSE 8080

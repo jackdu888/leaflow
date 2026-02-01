@@ -84,7 +84,21 @@ class LeaflowAutoCheckin:
             
             # 在GitHub Actions或Docker环境中使用webdriver-manager自动管理ChromeDriver
             try:
-                service = Service(ChromeDriverManager().install())
+                # 优先使用环境变量指定的 ChromeDriver (如 Docker 内置的)
+                system_chromedriver = os.getenv('CHROMEDRIVER_PATH')
+                system_chrome_bin = os.getenv('CHROME_BIN')
+
+                if system_chrome_bin:
+                    logger.info(f"Setting Chrome binary location: {system_chrome_bin}")
+                    chrome_options.binary_location = system_chrome_bin
+
+                if system_chromedriver and os.path.exists(system_chromedriver):
+                    logger.info(f"Using system chromedriver at {system_chromedriver}")
+                    service = Service(system_chromedriver)
+                else:
+                    logger.info("Using webdriver-manager to download chromedriver...")
+                    service = Service(ChromeDriverManager().install())
+                
                 self.driver = webdriver.Chrome(service=service, options=chrome_options)
                 logger.info("ChromeDriver initialized successfully")
             except Exception as e:
