@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 
 SEMVER_RE = re.compile(r"^v?(\\d+)\\.(\\d+)\\.(\\d+)$")
@@ -72,9 +73,19 @@ def main():
         write_path = args[idx + 1] if idx + 1 < len(args) else ""
 
     latest_tag = get_latest_tag()
-    base = os.getenv("SEMVER_START", "0.1.0")
-    if latest_tag:
-        base = latest_tag.lstrip("v")
+
+    base = None
+    version_file = Path("VERSION")
+    if version_file.exists():
+        try:
+            base = version_file.read_text(encoding="utf-8").strip()
+        except Exception:
+            base = None
+
+    if not base:
+        base = os.getenv("SEMVER_START", "0.1.0")
+        if latest_tag:
+            base = latest_tag.lstrip("v")
 
     base_ver = parse_version(base)
     if not base_ver:
@@ -82,12 +93,12 @@ def main():
         sys.exit(1)
 
     messages = get_messages(latest_tag)
-    level = detect_bump(messages)
-
-    if latest_tag:
-        next_ver = bump_version(base_ver, level)
-    else:
+    if not messages:
+        # No new commits since last tag; keep current version
         next_ver = base_ver
+    else:
+        level = detect_bump(messages)
+        next_ver = bump_version(base_ver, level)
 
     version = ".".join(str(v) for v in next_ver)
     tag = f"v{version}"
