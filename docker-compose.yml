@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  leaflow-checkin:
+    build: .
+    environment:
+      - LEAFLOW_ACCOUNTS=${LEAFLOW_ACCOUNTS}
+      - LEAFLOW_COOKIE=${LEAFLOW_COOKIE}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    restart: "no"
