@@ -152,7 +152,14 @@ class LeaflowAutoCheckin:
     def open_checkin_from_workspaces(self):
         """Open check-in modal from workspaces page."""
         try:
-            self.safe_get("https://leaflow.net/workspaces", max_retries=2, wait_between=3)
+            current_url = ""
+            try:
+                current_url = self.driver.current_url or ""
+            except Exception:
+                current_url = ""
+
+            if "https://leaflow.net/workspaces" not in current_url:
+                self.safe_get("https://leaflow.net/workspaces", max_retries=2, wait_between=3)
             WebDriverWait(self.driver, 20).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
@@ -612,6 +619,22 @@ class LeaflowAutoCheckin:
                     pass
 
         errors = []
+
+        # If already on workspaces after login, try modal first to avoid timeout
+        try:
+            current_url = self.driver.current_url or ""
+        except Exception:
+            current_url = ""
+
+        if "https://leaflow.net/workspaces" in current_url:
+            try:
+                if self.open_checkin_from_workspaces():
+                    ok, message = try_checkin_on_current_page()
+                    if ok:
+                        return message
+                    errors.append(f"workspaces: {message}")
+            except Exception as e:
+                errors.append(f"workspaces: {str(e)}")
 
         for url in self.checkin_urls:
             try:
