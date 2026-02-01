@@ -737,60 +737,64 @@ class LeaflowAutoCheckin:
     
     def find_and_click_checkin_button(self):
         """查找并点击签到按钮 - 处理已签到状态"""
-        logger.info("查找签到按钮...")
+        logger.info("正在查找并点击'立即签到'按钮...")
         
         try:
             # 先等待页面可能的重载
-            time.sleep(5)
+            time.sleep(2)
             
-            # 使用和单账号成功时相同的选择器
+            # 扩展选择器列表，包含更多前端框架的按钮样式
             checkin_selectors = [
                 "button.checkin-btn",
-                "//button[contains(text(), '立即签到')]",
-                "//span[contains(text(), '立即签到')]/ancestor::button[1]",
-                "//*[self::button or self::a or @role='button'][contains(., '立即签到')]",
-                "//button[contains(@class, 'checkin')]",
-                "//button[contains(text(), '签到')]",
-                "button[type='submit']",
-                "button[name='checkin']"
+                "//button[contains(., '立即签到')]",
+                "//button[contains(., '签到')]",
+                "//*[contains(@class, 'ant-btn') and contains(., '签到')]",  # Ant Design
+                "//*[contains(@class, 'el-button') and contains(., '签到')]", # Element UI
+                "//*[contains(@class, 'MuiButton') and contains(., '签到')]", # Material UI
+                "//div[@role='button' and contains(., '签到')]",
+                "//a[@role='button' and contains(., '签到')]",
+                "//*[text()='立即签到']",
+                "//*[text()='签到']"
             ]
             
+            # 1. 尝试常规选择器
             for selector in checkin_selectors:
                 try:
                     if selector.startswith("//"):
-                        checkin_btn = WebDriverWait(self.driver, 15).until(
-                            EC.presence_of_element_located((By.XPATH, selector))
-                        )
+                        # 使用 shorter timeout for each selector to iterate faster
+                        elements = self.driver.find_elements(By.XPATH, selector)
                     else:
-                        checkin_btn = WebDriverWait(self.driver, 15).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, selector))
-                        )
+                        elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
                     
-                    if checkin_btn.is_displayed():
-                        try:
-                            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkin_btn)
-                        except Exception:
-                            pass
-                        # 检查按钮文本，如果包含"已签到"则说明今天已经签到过了
-                        btn_text = checkin_btn.text.strip()
-                        if "已签到" in btn_text or "已完成" in btn_text:
-                            logger.info("伙计，今日你已经签到过了！")
-                            return "already_checked_in"
-                        
-                        # 检查按钮是否可用
-                        if checkin_btn.is_enabled():
-                            logger.info(f"找到并点击立即签到按钮")
+                    for checkin_btn in elements:
+                        if checkin_btn.is_displayed() and checkin_btn.is_enabled():
+                            # 再次确认文本，避免误点
+                            btn_text = checkin_btn.text.strip()
+                            if "已签到" in btn_text or "已完成" in btn_text:
+                                logger.info("检测到按钮文本包含'已签到'，跳过点击")
+                                return "already_checked_in"
+
+                            logger.info(f"找到签到按钮 (Text: {btn_text})，尝试点击...")
+                            try:
+                                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkin_btn)
+                                time.sleep(0.5)
+                            except:
+                                pass
+                            
                             checkin_btn.click()
+                            logger.info("已触发点击操作")
                             return True
-                        else:
-                            logger.info("签到按钮不可用，可能已经签到过了")
-                            return "already_checked_in"
-                        
-                except Exception as e:
-                    logger.debug(f"选择器未找到按钮: {e}")
+                except Exception:
                     continue
             
-            logger.error("找不到签到按钮")
+            # 2. 如果常规选择器失败，使用 JS 模糊搜索点击 (穿透 Shadow DOM)
+            logger.info("常规选择器未找到，尝试 JS 智能搜索点击...")
+            js_keywords = ["立即签到", "签到", "Check in"]
+            if self._js_click_by_text(js_keywords, timeout=5):
+                logger.info("JS 点击成功")
+                return True
+
+            logger.error("在当前页面/弹窗中找不到可点击的签到按钮")
             return False
                     
         except Exception as e:
