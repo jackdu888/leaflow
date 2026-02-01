@@ -1,8 +1,12 @@
 import os
+import sys
 import sqlite3
 import threading
 import time
 from datetime import datetime
+
+# Add parent directory to sys.path to import leaflow_checkin
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
