@@ -808,7 +808,7 @@ class LeaflowAutoCheckin:
         # 优先尝试通过主站工作空间弹窗签到（目前最稳定）
         logger.info("尝试方案1：主站工作空间弹窗签到")
         if self.open_checkin_from_workspaces():
-            logger.info("成功打开签到弹窗，查找签到按钮...")
+            logger.info("成功打开签到弹窗，准备点击'立即签到'...")
             checkin_result = self.find_and_click_checkin_button()
             if checkin_result:
                 return "今日已签到" if checkin_result == "already_checked_in" else True
