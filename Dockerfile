@@ -35,5 +35,5 @@ ENV PORT=8080
 # Expose port
 EXPOSE 8080
 
-# Run the FastAPI app with uvicorn
-CMD ["uvicorn", "web.app:app", "--host", "0.0.0.0", "--port", "8080"]
+# Run the FastAPI app with python to use PORT env var
+CMD ["python", "web/app.py"]
