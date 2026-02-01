@@ -77,10 +77,16 @@ def _init_db():
             """
         )
         conn.commit()
-    fgl/helh
-    he lchnch.cke()
-"""Health check endpot for monoring tools"""
-rtur {"sttus": "k", "timestamp": datetime.tcow().isoforma}
+    finally:
+        conn.close()
+
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint for monitoring tools"""
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
+
 def _require_auth(request: Request):
     if not ADMIN_TOKEN:
         return
