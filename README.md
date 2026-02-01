@@ -79,73 +79,52 @@
 
 构建镜像（支持语义化 tag，例如 1.0.0）：
 ```bash
-docker build -t leaflow-auto-checkin:latest -t leaflow-auto-checkin:1.0.0 .
+docker build -t leaflow-auto-checkin:latest .
 ```
 
-Cookie 登录运行示例（推荐）：
+### Docker 环境变量说明
+
+| 变量名 | 说明 | 默认值 | 必填 |
+|--------|------|--------|------|
+| `LEAFLOW_ACCOUNTS` | 多账号配置 (email:pass,email2:pass2) | 无 | 否 (与 Cookie 二选一) |
+| `LEAFLOW_COOKIE` | Cookie 登录配置 (key=value;...) | 无 | 否 (推荐) |
+| `TELEGRAM_BOT_TOKEN` | Telegram Bot Token | 无 | 否 |
+| `TELEGRAM_CHAT_ID` | Telegram Chat ID | 无 | 否 |
+| `LEAFLOW_CHECKIN_URLS` | 自定义签到地址 (逗号分隔) | 自动探测 | 否 |
+| `DB_PATH` | SQLite 数据库路径 | `/app/data/leaflow.db` | 否 |
+| `ADMIN_TOKEN` | Web 面板访问令牌 (安全验证) | 无 | 否 |
+| `PORT` | Web 服务端口 | `8080` | 否 |
+
+### 运行示例
+
+**方式一：使用 Docker Compose (推荐)**
+```bash
+# 启动服务（包含 Web 面板）
+docker compose up -d
+```
+启动后访问：`http://localhost:8080`
+
+**方式二：使用 Docker Run (仅脚本)**
+
+Cookie 登录运行：
 ```bash
 docker run --rm \
   -e LEAFLOW_COOKIE="remember_web_xxx=...; session=..." \
-  -e LEAFLOW_CHECKIN_URLS="https://leaflow.net/workspaces,https://checkin.leaflow.net" \
   leaflow-auto-checkin:latest
 ```
 
-多账号运行示例：
+多账号运行：
 ```bash
 docker run --rm \
   -e LEAFLOW_ACCOUNTS="email1:password1,email2:password2" \
-  -e LEAFLOW_CHECKIN_URLS="https://leaflow.net/workspaces,https://checkin.leaflow.net" \
   -e TELEGRAM_BOT_TOKEN="xxx" \
   -e TELEGRAM_CHAT_ID="xxx" \
   leaflow-auto-checkin:latest
 ```
 
-单账号运行示例：
-```bash
-docker run --rm \
-  -e LEAFLOW_EMAIL="email@example.com" \
-  -e LEAFLOW_PASSWORD="password" \
-  -e LEAFLOW_CHECKIN_URLS="https://leaflow.net/workspaces,https://checkin.leaflow.net" \
-  leaflow-auto-checkin:latest
-```
-
-使用 docker compose：
-```bash
-docker compose up --build
-```
-默认会同时启动脚本 + 面板。如只启动其中一个：
-```bash
-docker compose up --build leaflow-checkin
-docker compose up --build leaflow-web
-```
-
-## 可视化面板（可选）
-
-本仓库内置一个轻量 Web 面板（FastAPI + SQLite），用于账号管理、查看签到结果、手动触发签到。
-面板账号来源于面板内录入的数据，不读取 `LEAFLOW_ACCOUNTS` 环境变量。
-
-启用方式（docker compose）：
-```bash
-docker compose up --build leaflow-web
-```
-
-默认地址：`http://<你的服务器IP>:8080`
-可选安全令牌：设置 `ADMIN_TOKEN` 后需要输入令牌才能访问。
-数据会持久化到 `./data/leaflow.db`（已在 compose 中挂载）。
-注意：账号密码会以明文存储在 SQLite 中，请确保运行环境安全。## 可视化面板（Web UI）
+## 可视化面板（Web UI）
 
 本项目已内置 Web 管理面板（基于 FastAPI + SQLite），支持多账号管理、Cookie 配置、手动签到和日志查看。
-
-**启动方式：**
-使用 Docker Compose 启动：
-```bash
-docker compose up -d
-```
-启动后访问：`http://localhost:8080`
-
-**数据持久化：**
-- 数据文件：`./data/leaflow.db`
-- 已通过 Docker Volume 挂载到宿主机 `./data` 目录。
 
 **功能特性：**
 1. **多账号管理**：支持添加/删除/启用/禁用账号。
@@ -153,28 +132,11 @@ docker compose up -d
 3. **实时日志**：Web 端查看运行状态。
 4. **手动触发**：一键运行签到任务。
 
+**数据持久化：**
+- 数据文件：`./data/leaflow.db`
+- 已通过 Docker Volume 挂载到宿主机 `./data` 目录。
+
 ---
-
-## 💻 本地运行指南
-
-如果你已经 Fork 过本仓库，推荐两种方式同步更新：
-
-**方式一：GitHub 网页一键同步**
-1. 打开你自己的 Fork 仓库主页
-2. 点击 "Sync fork" -> "Update branch"
-3. 等待同步完成
-
-**方式二：本地命令行同步**
-```bash
-git remote add upstream https://github.com/<原作者>/<仓库名>.git
-git fetch upstream
-git checkout main
-git merge upstream/main
-git push origin main
-```
-如你的默认分支是 master，请把 main 替换为 master。
-如果出现冲突，请按提示解决后再推送。
-
 
 ## 💻 本地运行指南
 
