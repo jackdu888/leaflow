@@ -1,16 +1,32 @@
-version: '3.8'
+version: "3.8"
 
 services:
   leaflow-checkin:
+    image: leaflow-auto-checkin:latest
     build: .
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./data:/app/data
+    command: ["python", "leaflow_checkin.py"]
     environment:
       - LEAFLOW_ACCOUNTS=${LEAFLOW_ACCOUNTS}
+      - LEAFLOW_EMAIL=${LEAFLOW_EMAIL}
+      - LEAFLOW_PASSWORD=${LEAFLOW_PASSWORD}
       - LEAFLOW_COOKIE=${LEAFLOW_COOKIE}
+      - LEAFLOW_CHECKIN_URL=${LEAFLOW_CHECKIN_URL}
+      - LEAFLOW_CHECKIN_URLS=${LEAFLOW_CHECKIN_URLS}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-      - DB_PATH=/app/data/leaflow.db
-    restart: unless-stopped
+    restart: "no"
+
+  leaflow-web:
+    image: leaflow-auto-checkin:latest
+    build: .
+    command: ["uvicorn", "web.app:app", "--host", "0.0.0.0", "--port", "8080"]
+    ports:
+      - "8080:8080"
+    environment:
+      - ADMIN_TOKEN=${ADMIN_TOKEN}
+      - DB_PATH=/data/leaflow.db
+      - LEAFLOW_CHECKIN_URL=${LEAFLOW_CHECKIN_URL}
+      - LEAFLOW_CHECKIN_URLS=${LEAFLOW_CHECKIN_URLS}
+    volumes:
+      - ./data:/data
+    restart: "no"

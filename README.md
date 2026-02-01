@@ -110,7 +110,8 @@ Cookie 登录运行：
 ```bash
 docker run --rm \
   -e LEAFLOW_COOKIE="remember_web_xxx=...; session=..." \
-  leaflow-auto-checkin:latest
+  leaflow-auto-checkin:latest \
+  python leaflow_checkin.py
 ```
 
 多账号运行：
@@ -119,7 +120,8 @@ docker run --rm \
   -e LEAFLOW_ACCOUNTS="email1:password1,email2:password2" \
   -e TELEGRAM_BOT_TOKEN="xxx" \
   -e TELEGRAM_CHAT_ID="xxx" \
-  leaflow-auto-checkin:latest
+  leaflow-auto-checkin:latest \
+  python leaflow_checkin.py
 ```
 
 ## 可视化面板（Web UI）
@@ -137,6 +139,26 @@ docker run --rm \
 - 已通过 Docker Volume 挂载到宿主机 `./data` 目录。
 
 ---
+
+## Fork 后如何更新
+
+如果你已经 Fork 过本仓库，推荐两种方式同步更新：
+
+**方式一：GitHub 网页一键同步**
+1. 打开你自己的 Fork 仓库主页
+2. 点击 "Sync fork" -> "Update branch"
+3. 等待同步完成
+
+**方式二：本地命令行同步**
+```bash
+git remote add upstream https://github.com/<原作者>/<仓库名>.git
+git fetch upstream
+git checkout main
+git merge upstream/main
+git push origin main
+```
+如你的默认分支是 master，请把 main 替换为 master。
+如果出现冲突，请按提示解决后再推送。
 
 ## 💻 本地运行指南
 

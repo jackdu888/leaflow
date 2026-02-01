@@ -3,8 +3,6 @@ name: Docker Publish
 on:
   push:
     branches: [ "main" ]
-    # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
   pull_request:
     branches: [ "main" ]
 
@@ -17,10 +15,11 @@ env:
 
 jobs:
   build:
+    if: github.actor != 'github-actions[bot]'
 
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
       # This is used to complete the identity challenge
       # with sigstore/fulcio when running outside of PRs.
@@ -29,6 +28,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
@@ -61,6 +62,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.version != '' }}
             type=ref,event=branch
             type=ref,event=tag
 
@@ -77,3 +79,26 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Update VERSION file
+        if: github.event_name != 'pull_request' && github.actor != 'github-actions[bot]'
+        run: |
+          echo "${{ steps.version.outputs.version }}" > VERSION
+
+      - name: Commit VERSION
+        if: github.event_name != 'pull_request' && github.actor != 'github-actions[bot]'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No VERSION change"
+            exit 0
+          fi
+          git add VERSION
+          git commit -m "chore(release): v${{ steps.version.outputs.version }} [skip ci]"
+          git push
+
+      - name: Create tag
+        if: github.event_name != 'pull_request' && github.actor != 'github-actions[bot]'
+        run: |
+          git tag -f "v${{ steps.version.outputs.version }}"
+          git push -f origin "v${{ steps.version.outputs.version }}"
