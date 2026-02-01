@@ -149,6 +149,21 @@ class LeaflowAutoCheckin:
             time.sleep(0.5)
         return False
 
+    def _click_element(self, element):
+        try:
+            try:
+                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+            except Exception:
+                pass
+            element.click()
+            return True
+        except Exception:
+            try:
+                self.driver.execute_script("arguments[0].click();", element)
+                return True
+            except Exception:
+                return False
+
     def open_checkin_from_workspaces(self):
         """Open check-in modal from workspaces page."""
         try:
@@ -167,26 +182,40 @@ class LeaflowAutoCheckin:
 
             click_selectors = [
                 "//button[contains(., '签到试用')]",
+                "//*[contains(normalize-space(.), '签到试用') and (self::button or self::a or @role='button')]",
+                "//*[contains(normalize-space(.), '签到试用')]/ancestor::button[1]",
+                "//*[contains(normalize-space(.), '签到试用')]/ancestor::*[@role='button' or self::a][1]",
                 "//button[contains(., '签到')]",
-                "//span[contains(., '签到试用')]/ancestor::button[1]",
-                "//span[contains(., '签到')]/ancestor::button[1]"
+                "//*[contains(normalize-space(.), '签到') and (self::button or self::a or @role='button')]",
+                "//*[contains(normalize-space(.), '签到')]/ancestor::button[1]",
+                "//*[contains(normalize-space(.), '签到')]/ancestor::*[@role='button' or self::a][1]"
             ]
 
             target_btn = None
-            for selector in click_selectors:
-                try:
-                    target_btn = self.wait_for_element_clickable(By.XPATH, selector, 8)
-                    if target_btn:
-                        break
-                except Exception:
-                    continue
+            end_time = time.time() + 15
+            while time.time() < end_time and not target_btn:
+                for selector in click_selectors:
+                    try:
+                        elements = self.driver.find_elements(By.XPATH, selector)
+                        for element in elements:
+                            if element.is_displayed():
+                                target_btn = element
+                                break
+                        if target_btn:
+                            break
+                    except Exception:
+                        continue
+                if not target_btn:
+                    time.sleep(0.5)
 
             if not target_btn:
                 logger.warning("未找到工作空间中的签到入口按钮")
                 return False
 
             old_handles = set(self.driver.window_handles)
-            target_btn.click()
+            if not self._click_element(target_btn):
+                logger.warning("签到入口按钮点击失败")
+                return False
 
             # New window/tab
             if self._switch_to_new_window(old_handles, timeout=8):
