@@ -33,19 +33,23 @@
 
 在你 Fork 的仓库页面，点击 **Settings** -> **Secrets and variables** -> **Actions**，然后点击 **New repository secret** 添加以下密钥：
 
-| Secret 名称 | 描述 | 格式 |
-| :--- | :--- | :--- |
-| `LEAFLOW_ACCOUNTS` | **（推荐）** 你的 Leaflow 账号信息（支持多账号） | `邮箱1:密码1,邮箱2:密码2` (多个账号用逗号隔开) |
-| `LEAFLOW_EMAIL` | （备选）单个 Leaflow 账号邮箱 | `your_email@example.com` |
-| `LEAFLOW_PASSWORD` | （备选）单个 Leaflow 账号密码 | `your_password` |
-| `LEAFLOW_CHECKIN_URL` | （可选）单个签到入口 URL | `https://leaflow.net/workspaces` |
-| `LEAFLOW_CHECKIN_URLS` | （可选）多个签到入口 URL（优先级从左到右） | `https://leaflow.net/workspaces,https://checkin.leaflow.net` |
-| `TELEGRAM_BOT_TOKEN` | （可选）你的 Telegram Bot Token | 详情见下文 |
-| `TELEGRAM_CHAT_ID` | （可选）你的 Telegram Chat ID | 详情见下文 |
+| 变量名 | 说明 | 示例值 |
+|--------|------|--------|
+| `LEAFLOW_ACCOUNTS` | 账号列表（邮箱:密码），多账号用英文逗号分隔 | `test1@gmail.com:pass1,test2@gmail.com:pass2` |
+| `LEAFLOW_EMAIL` | 单账号邮箱（可选，优先级低于 ACCOUNTS） | `test@gmail.com` |
+| `LEAFLOW_PASSWORD` | 单账号密码（可选） | `password123` |
+| `LEAFLOW_COOKIE` | （**推荐**）直接使用 Cookie 登录，跳过账号密码登录 | `remember_web_xxx=...; session=...` |
+| `LEAFLOW_CHECKIN_URL` | 自定义签到地址（可选） | `https://checkin.leaflow.net` |
+| `LEAFLOW_CHECKIN_URLS` | 多个签到地址，用逗号分隔（可选） | `https://checkin.leaflow.net,https://...` |
+| `TELEGRAM_BOT_TOKEN` | Telegram Bot Token（可选） | `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11` |
+| `TELEGRAM_CHAT_ID` | Telegram Chat ID（可选） | `123456789` |
 
-**Telegram 通知配置说明：**
-1.  **创建机器人**：在 Telegram 中搜索 `@BotFather`，发送 `/newbot` 命令创建机器人，获取 Token。
-2.  **获取 Chat ID**：在 Telegram 中搜索 `@userinfobot`，获取你的 ID。
+### 🚀 2026/02 优化更新
+针对 Leaflow 近期访问不稳定的问题，脚本进行了以下优化：
+1. **Cookie 登录支持**：推荐使用 `LEAFLOW_COOKIE` 环境变量，直接跳过登录步骤，规避登录页面的验证码和加载卡顿。
+2. **加速加载**：自动屏蔽 reCAPTCHA、Google Fonts 等非核心资源，显著提升页面加载速度。
+3. **工作空间弹窗签到**：优先尝试在主站工作空间（workspaces）页面通过弹窗签到，成功率更高。
+4. **智能重试**：增强了超时处理和重试机制，适应不稳定的网络环境。
 
 ### 3. 启用 GitHub Actions
 

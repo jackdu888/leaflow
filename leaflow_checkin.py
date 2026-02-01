@@ -164,6 +164,89 @@ class LeaflowAutoCheckin:
             except Exception:
                 return False
 
+    def _js_click_by_text(self, texts, timeout=10):
+        """Find element by text (including shadow DOM) and click via JS."""
+        script = """
+        const texts = arguments[0] || [];
+        function isVisible(el) {
+          if (!el || !el.getBoundingClientRect) return false;
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) return false;
+          const style = window.getComputedStyle(el);
+          if (!style) return false;
+          return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+        }
+        function isClickable(el) {
+          if (!el) return false;
+          const tag = (el.tagName || '').toLowerCase();
+          if (tag === 'button' || tag === 'a') return true;
+          const role = el.getAttribute && el.getAttribute('role');
+          if (role === 'button') return true;
+          if (el.onclick || el.getAttribute('onclick')) return true;
+          return false;
+        }
+        function closestClickable(el) {
+          let cur = el;
+          while (cur && cur !== document.body) {
+            if (isClickable(cur)) return cur;
+            cur = cur.parentElement;
+          }
+          return el;
+        }
+        function iterNodes(root) {
+          const out = [];
+          const queue = [root];
+          while (queue.length) {
+            const node = queue.shift();
+            if (!node) continue;
+            if (node.nodeType === 1) { // ELEMENT_NODE
+              out.push(node);
+              if (node.shadowRoot) queue.push(node.shadowRoot);
+              if (node.children) {
+                for (const child of node.children) queue.push(child);
+              }
+            } else if (node.nodeType === 11) { // DOCUMENT_FRAGMENT
+              if (node.children) {
+                for (const child of node.children) queue.push(child);
+              }
+            } else if (node.nodeType === 9) { // DOCUMENT
+              if (node.body) queue.push(node.body);
+            }
+          }
+          return out;
+        }
+        const nodes = iterNodes(document);
+        for (const el of nodes) {
+          if (!isVisible(el)) continue;
+          const text = (el.innerText || el.textContent || '').trim();
+          if (!text) continue;
+          for (const t of texts) {
+            if (text.includes(t)) {
+              const target = closestClickable(el);
+              try {
+                target.scrollIntoView({block: 'center'});
+              } catch (e) {}
+              try {
+                target.click();
+              } catch (e) {
+                try { target.dispatchEvent(new MouseEvent('click', {bubbles: true})); } catch (e2) {}
+              }
+              return true;
+            }
+          }
+        }
+        return false;
+        """
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            try:
+                if self.driver.execute_script(script, texts):
+                    return True
+            except Exception:
+                pass
+            time.sleep(1)
+        return False
+
     def open_checkin_from_workspaces(self):
         """Open check-in modal from workspaces page."""
         try:
@@ -210,12 +293,35 @@ class LeaflowAutoCheckin:
 
             if not target_btn:
                 logger.warning("未找到工作空间中的签到入口按钮")
+                fallback_texts = ["签到试用", "签到"]
+                # Try JS-based text search (including shadow DOM)
+                if self._js_click_by_text(fallback_texts, timeout=8):
+                    target_btn = True
+                else:
+                    # Try inside iframes
+                    try:
+                        iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+                        for iframe in iframes:
+                            try:
+                                self.driver.switch_to.frame(iframe)
+                                if self._js_click_by_text(fallback_texts, timeout=3):
+                                    target_btn = True
+                                    break
+                            except Exception:
+                                pass
+                            finally:
+                                self.driver.switch_to.default_content()
+                    except Exception:
+                        pass
+
+            if not target_btn:
                 return False
 
             old_handles = set(self.driver.window_handles)
-            if not self._click_element(target_btn):
-                logger.warning("签到入口按钮点击失败")
-                return False
+            if target_btn is not True:
+                if not self._click_element(target_btn):
+                    logger.warning("签到入口按钮点击失败")
+                    return False
 
             # New window/tab
             if self._switch_to_new_window(old_handles, timeout=8):
@@ -310,6 +416,33 @@ class LeaflowAutoCheckin:
     
     def login(self):
         """执行登录流程，支持重试机制"""
+        # 尝试使用 Cookie 登录（如果提供了）
+        cookie_str = os.getenv('LEAFLOW_COOKIE')
+        if cookie_str:
+            try:
+                logger.info("检测到 LEAFLOW_COOKIE，尝试通过 Cookie 登录...")
+                # 先访问域名以设置 Cookie
+                self.driver.get("https://leaflow.net")
+                time.sleep(2)
+                
+                # 解析 Cookie 字符串 (key=value; key2=value2)
+                for item in cookie_str.split(';'):
+                    if '=' in item:
+                        name, value = item.strip().split('=', 1)
+                        self.driver.add_cookie({'name': name, 'value': value})
+                
+                # 刷新页面验证登录
+                self.driver.refresh()
+                time.sleep(5)
+                
+                if "dashboard" in self.driver.current_url or "workspaces" in self.driver.current_url or "login" not in self.driver.current_url:
+                    logger.info("Cookie 登录成功")
+                    return True
+                else:
+                    logger.warning("Cookie 登录失败，回退到常规登录")
+            except Exception as e:
+                logger.warning(f"Cookie 登录出错: {e}")
+
         max_retries = 3
         
         for attempt in range(max_retries):
@@ -622,84 +755,35 @@ class LeaflowAutoCheckin:
     
     def checkin(self):
         """执行签到流程"""
-        logger.info("跳转到签到页面...")
+        logger.info("开始签到流程...")
 
-        def try_checkin_on_current_page():
-            try:
-                # 等待签到页面加载（最多重试3次，每次等待20秒）
-                if not self.wait_for_checkin_page_loaded(max_retries=3, wait_time=20):
-                    return False, "checkin elements not found"
+        # 优先尝试通过主站工作空间弹窗签到（目前最稳定）
+        logger.info("尝试方案1：主站工作空间弹窗签到")
+        if self.open_checkin_from_workspaces():
+            logger.info("成功打开签到弹窗，查找签到按钮...")
+            checkin_result = self.find_and_click_checkin_button()
+            if checkin_result:
+                return "今日已签到" if checkin_result == "already_checked_in" else True
+        else:
+            logger.warning("方案1失败，尝试备选方案")
 
-                # 查找并点击立即签到按钮
-                checkin_result = self.find_and_click_checkin_button()
-
-                if checkin_result == "already_checked_in":
-                    return True, "今日已签到"
-                if checkin_result is True:
-                    logger.info("已点击立即签到按钮")
-                    time.sleep(5)  # 等待签到结果
-                    result_message = self.get_checkin_result()
-                    return True, result_message
-                return False, "checkin button not found or not clickable"
-            finally:
-                try:
-                    self.driver.switch_to.default_content()
-                except Exception:
-                    pass
-
-        errors = []
-
-        # If already on workspaces after login, try modal first to avoid timeout
-        try:
-            current_url = self.driver.current_url or ""
-        except Exception:
-            current_url = ""
-
-        if "https://leaflow.net/workspaces" in current_url:
-            try:
-                if self.open_checkin_from_workspaces():
-                    ok, message = try_checkin_on_current_page()
-                    if ok:
-                        return message
-                    errors.append(f"workspaces: {message}")
-            except Exception as e:
-                errors.append(f"workspaces: {str(e)}")
-
+        # 备选方案：直接访问签到 URL
+        logger.info("尝试方案2：直接访问签到 URL")
         for url in self.checkin_urls:
             try:
-                self.safe_get(url, max_retries=2, wait_between=3)
-                ok, message = try_checkin_on_current_page()
-                if ok:
-                    return message
-                errors.append(f"{url}: {message}")
+                logger.info(f"正在访问签到地址: {url}")
+                self.safe_get(url, max_retries=1, wait_between=3)
+                
+                # 等待签到页面加载（最多重试2次，每次等待15秒）
+                if self.wait_for_checkin_page_loaded(max_retries=2, wait_time=15):
+                    checkin_result = self.find_and_click_checkin_button()
+                    if checkin_result:
+                        return "今日已签到" if checkin_result == "already_checked_in" else True
             except Exception as e:
-                errors.append(f"{url}: {str(e)}")
-
-        # Try from workspaces modal
-        try:
-            if self.open_checkin_from_workspaces():
-                ok, message = try_checkin_on_current_page()
-                if ok:
-                    return message
-                errors.append(f"workspaces: {message}")
-            else:
-                errors.append("workspaces: failed to open checkin modal")
-        except Exception as e:
-            errors.append(f"workspaces: {str(e)}")
-
-        # Fallback: try dashboard if not already in list
-        dashboard_url = "https://leaflow.net/dashboard"
-        if dashboard_url not in self.checkin_urls:
-            try:
-                self.safe_get(dashboard_url, max_retries=1, wait_between=2)
-                ok, message = try_checkin_on_current_page()
-                if ok:
-                    return message
-                errors.append(f"{dashboard_url}: {message}")
-            except Exception as e:
-                errors.append(f"{dashboard_url}: {str(e)}")
-
-        raise Exception("Checkin failed. " + " | ".join(errors))
+                logger.warning(f"访问 {url} 失败: {e}")
+                continue
+        
+        raise Exception("所有签到方案均失败")
     
     def get_checkin_result(self):
         """获取签到结果消息"""
