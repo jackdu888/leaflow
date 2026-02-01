@@ -312,7 +312,8 @@ class LeaflowAutoCheckin:
 
             if not target_btn:
                 logger.warning("未找到工作空间中的签到入口按钮")
-                fallback_texts = ["签到试用", "签到"]
+                # Removed "签到" from fallback to avoid clicking sidebar navigation links
+                fallback_texts = ["签到试用", "每日签到", "立即签到"] 
                 # Try JS-based text search (including shadow DOM)
                 if self._js_click_by_text(fallback_texts, timeout=8):
                     target_btn = True
