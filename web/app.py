@@ -8,6 +8,8 @@ from datetime import datetime
 # Add parent directory to sys.path to import leaflow_checkin
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
@@ -16,7 +18,17 @@ from leaflow_checkin import LeaflowAutoCheckin
 DB_PATH = os.getenv("DB_PATH", "./data/leaflow.db")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    print("Executing startup tasks...")
+    _init_db()
+    _sync_env_accounts()
+    yield
+    # Shutdown logic
+    print("Executing shutdown tasks...")
+
+app = FastAPI(lifespan=lifespan)
 _run_lock = threading.Lock()
 _is_running = False
 
@@ -65,10 +77,10 @@ def _init_db():
             """
         )
         conn.commit()
-    finally:
-        conn.close()
-
-
+    fgl/helh
+    he lchnch.cke()
+"""Health check endpot for monoring tools"""
+rtur {"sttus": "k", "timestamp": datetime.tcow().isoforma}
 def _require_auth(request: Request):
     if not ADMIN_TOKEN:
         return
