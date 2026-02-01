@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 SEMVER_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
+SEMVER_FIND_RE = re.compile(r"v?(\d+)\.(\d+)\.(\d+)")
 
 
 def run(cmd):
@@ -25,6 +26,17 @@ def parse_version(tag):
     if not m:
         return None
     return [int(m.group(1)), int(m.group(2)), int(m.group(3))]
+
+
+def extract_version(text):
+    if not text:
+        return None
+    # Handle literal "\n" sequences and grab the first semver-looking token.
+    cleaned = text.replace("\\n", "\n")
+    m = SEMVER_FIND_RE.search(cleaned)
+    if not m:
+        return None
+    return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
 
 
 def bump_version(ver, level):
@@ -78,7 +90,7 @@ def main():
     version_file = Path("VERSION")
     if version_file.exists():
         try:
-            base = version_file.read_text(encoding="utf-8").strip()
+            base = extract_version(version_file.read_text(encoding="utf-8").strip())
         except Exception:
             base = None
 
