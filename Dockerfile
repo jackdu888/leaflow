@@ -29,6 +29,7 @@ COPY . .
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING=utf-8
+ENV GITHUB_ACTIONS=true
 ENV PORT=8080
 
 # Expose port
