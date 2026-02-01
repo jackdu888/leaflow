@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 
-SEMVER_RE = re.compile(r"^v?(\\d+)\\.(\\d+)\\.(\\d+)$")
+SEMVER_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
 
 
 def run(cmd):
@@ -46,9 +46,9 @@ def detect_bump(messages):
 
     if any("BREAKING CHANGE" in m or "BREAKING" in m for m in messages):
         return "major"
-    if any(re.match(r"^(feat|feature)(\\(.+\\))?!?:", m) for m in messages):
+    if any(re.match(r"^(feat|feature)(\(.+\))?!?:", m) for m in messages):
         return "minor"
-    if any(re.match(r"^(fix|perf|refactor|docs|chore)(\\(.+\\))?:", m) for m in messages):
+    if any(re.match(r"^(fix|perf|refactor|docs|chore)(\(.+\))?:", m) for m in messages):
         return "patch"
     return "patch"
 
@@ -95,6 +95,7 @@ def main():
     messages = get_messages(latest_tag)
     if not messages:
         # No new commits since last tag; keep current version
+        level = "none"
         next_ver = base_ver
     else:
         level = detect_bump(messages)
