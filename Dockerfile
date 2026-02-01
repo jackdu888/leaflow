@@ -30,12 +30,10 @@ COPY . .
 ENV GITHUB_ACTIONS=true
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING=utf-8
+ENV PORT=8080
 
-# Run the script
-# 默认启动 Web 服务，Web 服务会按需调用 checkin 脚本
-ENV PORT=5000
-EXPOSE 5000
-CMD ["python", "app.py"]
-
-# Optional web panel
+# Expose port
 EXPOSE 8080
+
+# Run the FastAPI app with uvicorn
+CMD ["uvicorn", "web.app:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -134,24 +134,24 @@ docker compose up --build leaflow-web
 数据会持久化到 `./data/leaflow.db`（已在 compose 中挂载）。
 注意：账号密码会以明文存储在 SQLite 中，请确保运行环境安全。## 可视化面板（Web UI）
 
-本项目新增了内置的 Web 管理面板，方便您管理账号、Cookie 并查看实时运行日志。
+本项目已内置 Web 管理面板（基于 FastAPI + SQLite），支持多账号管理、Cookie 配置、手动签到和日志查看。
 
 **启动方式：**
-使用 Docker Compose 启动（默认包含 Web 服务）：
+使用 Docker Compose 启动：
 ```bash
 docker compose up -d
 ```
-启动后访问：`http://localhost:5000`
+启动后访问：`http://localhost:8080`
+
+**数据持久化：**
+- 数据文件：`./data/leaflow.db`
+- 已通过 Docker Volume 挂载到宿主机 `./data` 目录。
 
 **功能特性：**
-1. **账号管理**：直观添加/删除多账号。
-2. **Cookie 管理**：配置免密登录 Cookie（推荐）。
-3. **一键运行**：手动触发后台签到任务。
-4. **实时日志**：在网页端直接查看运行日志。
-5. **数据持久化**：账号配置保存在 `./data` 目录（已挂载 Docker Volume）。
-
-**界面预览：**
-简洁的 Dashboard 风格，支持移动端适配。
+1. **多账号管理**：支持添加/删除/启用/禁用账号。
+2. **Cookie 免密**：支持配置 Cookie 跳过登录。
+3. **实时日志**：Web 端查看运行状态。
+4. **手动触发**：一键运行签到任务。
 
 ---
 
