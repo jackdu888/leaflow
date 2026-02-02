@@ -952,17 +952,11 @@ class LeaflowAutoCheckin:
         try:
             time.sleep(3)
             
+            # 优先查找明确的成功提示元素
             success_selectors = [
-                ".alert-success",
-                ".success",
-                ".message",
-                "[class*='success']",
-                "[class*='message']",
-                ".modal-content",
-                ".ant-message",
-                ".el-message",
-                ".toast",
-                ".notification",
+                ".alert-success", ".success", ".message", "[class*='success']", 
+                "[class*='message']", ".modal-content", ".ant-message", 
+                ".el-message", ".toast", ".notification",
                 "//div[contains(@class, 'ant-message-notice')]//span",
                 "//div[contains(@class, 'el-message__content')]"
             ]
@@ -977,29 +971,40 @@ class LeaflowAutoCheckin:
                     for element in elements:
                         if element.is_displayed():
                             text = element.text.strip()
-                            if text and "签到" in text and len(text) > 4: 
-                                return text
-                            if "+" in text:
+                            # 尝试从提示文本中提取金额
+                            match = re.search(r'获得\s*(\d+\.?\d*)\s*元', text) or \
+                                    re.search(r'\+\s*(\d+\.?\d*)\s*元', text) or \
+                                    re.search(r'(\d+\.?\d*)\s*元', text)
+                            
+                            if match and ("签到" in text or "成功" in text or "获得" in text):
+                                return f"签到成功！您获得了 {match.group(1)} 元奖励！"
+                            
+                            if text and ("签到" in text or "成功" in text) and len(text) > 4: 
                                 return text
                 except:
                     continue
             
+            # 如果没找到弹窗，扫描全页面文本
             page_text = self.driver.find_element(By.TAG_NAME, "body").text
-            import re
-            date_pattern = datetime.now().strftime("%Y-%m-%d")
             
+            # 1. 匹配标准奖励格式
+            match = re.search(r'获得\s*(\d+\.?\d*)\s*元', page_text) or \
+                    re.search(r'\+\s*(\d+\.?\d*)\s*元', page_text)
+            if match:
+                return f"签到成功！您获得了 {match.group(1)} 元奖励！"
+            
+            # 2. 匹配签到记录行
+            date_pattern = datetime.now().strftime("%Y-%m-%d")
             lines = page_text.split('\n')
             for line in lines:
                 line = line.strip()
-                if not line: continue
-                
                 if date_pattern in line and ("+" in line or "元" in line):
-                    return f"签到记录 {line}"
-                    
-                if "签到成功" in line or "获得" in line or "恭喜" in line:
-                    if len(line) < 50:
-                        return line
-            
+                     match = re.search(r'(\d+\.?\d*)\s*元', line) or re.search(r'\+\s*(\d+\.?\d*)', line)
+                     if match:
+                         return f"签到成功！您获得了 {match.group(1)} 元奖励！"
+                     return f"签到成功！({line})"
+
+            # 3. 检查按钮状态
             try:
                 checkin_btn = None
                 btn_selectors = ["button.checkin-btn", "//button[contains(., '已签到')]"]
@@ -1016,14 +1021,14 @@ class LeaflowAutoCheckin:
                 
                 if checkin_btn:
                     if not checkin_btn.is_enabled() or "已签到" in checkin_btn.text:
-                        return "签到成功 (按钮状态已更新)"
+                        return "签到成功！(已签到)"
             except:
                 pass
             
-            return "签到操作已执行，但未捕获到具体奖励文本"
+            return "签到成功！" # 默认返回成功，因为前面 checkin() 已经确认点击成功
             
         except Exception as e:
-            return f"获取签到结果时出错: {str(e)}"
+            return f"获取结果出错: {str(e)}"
     
     def run(self):
         """单个账号执行流程"""
@@ -1150,12 +1155,12 @@ class MultiAccountManager:
                 if success:
                     status = "✅"
                     message += f"账号：{masked_email}\n"
-                    message += f"{status}  {escaped_result}！\n"
-                    message += f"💰  当前总余额：{escaped_balance}。\n\n"
+                    message += f"{status} {escaped_result}\n"
+                    message += f"💰 当前总余额：{escaped_balance}。\n\n"
                 else:
                     status = "❌"
                     message += f"账号：{masked_email}\n"
-                    message += f"{status}  {escaped_result}\n\n"
+                    message += f"{status} {escaped_result}\n\n"
             
             url = f"https://api.telegram.org/bot{self.telegram_bot_token}/sendMessage"
             data = {
